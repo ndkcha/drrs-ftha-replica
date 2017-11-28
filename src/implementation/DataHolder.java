@@ -3,6 +3,7 @@ package implementation;
 import schema.Campus;
 import schema.Student;
 import schema.TimeSlot;
+import schema.UdpPacket;
 
 import java.io.*;
 import java.util.ArrayList;
@@ -16,12 +17,15 @@ public class DataHolder {
     Hashtable<String, Student> students;
     List<String> admins;
     HashMap<String, HashMap<Integer, List<TimeSlot>>> roomRecords;
+    HashMap<Integer, UdpPacket> packetHashMap = new HashMap<>();
+    int lastServedPacket;
 
     public DataHolder() {
         campuses = new ArrayList<>();
         students = new Hashtable<>();
         admins = new ArrayList<>();
         roomRecords = new HashMap<>();
+        lastServedPacket = -1;
     }
 
     int getUdpPort(String code) {

@@ -16,6 +16,7 @@ import java.util.logging.Logger;
 public class CampusOperations {
     private static final Object studentLock = new Object();
     private static final Object roomLock = new Object();
+    private static final Object packetLock = new Object();
 
     private Logger logs;
     private DataHolder dataHolder;
@@ -23,6 +24,23 @@ public class CampusOperations {
     public CampusOperations(Logger logs, DataHolder holder) {
         this.logs = logs;
         this.dataHolder = holder;
+    }
+
+    void addPacketToMap(UdpPacket packet) {
+        synchronized (packetLock) {
+            this.dataHolder.packetHashMap.put(packet.sequence, packet);
+        }
+    }
+
+    UdpPacket getNextPacket() {
+        return this.dataHolder.packetHashMap.getOrDefault(this.dataHolder.lastServedPacket + 1, null);
+    }
+
+    void servePacket(int sequence) {
+        synchronized (packetLock) {
+            this.dataHolder.packetHashMap.remove(sequence);
+            this.dataHolder.lastServedPacket = sequence;
+        }
     }
 
     boolean validateUser(String id, int choice) {
