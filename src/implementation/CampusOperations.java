@@ -5,7 +5,6 @@ import schema.Student;
 import schema.TimeSlot;
 import schema.UdpPacket;
 
-import javax.jws.WebMethod;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -33,6 +32,14 @@ public class CampusOperations {
         else
             this.logs.warning("Unknown login detected. Id: " + id);
         return success;
+    }
+
+    void copyData(HashMap<String, HashMap<Integer, List<TimeSlot>>> roomRecords) {
+        this.dataHolder.roomRecords = roomRecords;
+    }
+
+    HashMap<String, HashMap<Integer, List<TimeSlot>>> getData() {
+        return this.dataHolder.roomRecords;
     }
 
     boolean createRoom(String date, int roomNo, List<TimeSlot> timeSlots) {

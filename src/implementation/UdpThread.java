@@ -181,12 +181,14 @@ public class UdpThread implements Runnable {
         return this.serialize(newBookingId);
     }
 
+    @SuppressWarnings(value = "unchecked")
     private void copyData(HashMap<String, Object> body) throws IOException {
-
+        HashMap<String, HashMap<Integer, List<TimeSlot>>> roomRecords = (HashMap<String, HashMap<Integer, List<TimeSlot>>>) body.get(DataHolder.COPY_DATA.BODY_ROOM_RECORDS);
+        this.campusOps.copyData(roomRecords);
     }
 
     private byte[] getData() throws IOException {
-        return this.serialize("");
+        return this.serialize(this.campusOps.getData());
     }
 
     public void start() {
