@@ -127,7 +127,7 @@ public class CampusOperations {
         return success;
     }
 
-    public boolean resetBookings() {
+    boolean resetBookings() {
         // make sure no one else touches the room
         synchronized (roomLock) {
             // iterate through date entries
@@ -303,8 +303,7 @@ public class CampusOperations {
         return total;
     }
 
-    @WebMethod
-    public String bookRoom(String studentId, String code, String date, int roomNumber, TimeSlot timeSlot) {
+    String bookRoom(String studentId, String code, String date, int roomNumber, TimeSlot timeSlot) {
         String bookingId;
         Student student;
 
@@ -470,8 +469,7 @@ public class CampusOperations {
         return bookingId;
     }
 
-    @WebMethod
-    public boolean cancelBooking(String studentId, String bookingId) {
+    boolean cancelBooking(String studentId, String bookingId) {
         boolean success = false;
         Student student;
         String code = bookingId.substring(3, 6);
@@ -541,8 +539,7 @@ public class CampusOperations {
         return success;
     }
 
-    @WebMethod
-    public String changeBooking(String bookingId, String code, String date, int roomNumber, TimeSlot timeSlot) {
+    String changeBooking(String bookingId, String code, String date, int roomNumber, TimeSlot timeSlot) {
         String studentId, newBookingId;
         Student student = null;
 
