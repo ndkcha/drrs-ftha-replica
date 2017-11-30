@@ -103,10 +103,7 @@ public class UdpThread implements Runnable {
                 case DataHolder.CHANGE_BOOKING.operation:
                     outgoing = this.changeBooking(packet.body);
                     break;
-                case DataHolder.COPY_DATA.operation:
-                    this.copyData(packet.body);
-                    return;
-                case DataHolder.GET_DATA.operation:
+                case DataHolder.EXPORT_DATA.operation:
                     outgoing = this.getData();
                     break;
                 default:
@@ -208,12 +205,6 @@ public class UdpThread implements Runnable {
         String date = (String) body.get(DataHolder.CHANGE_BOOKING.BODY_DATE);
         String newBookingId = this.campusOps.changeBooking(bookingId, code, date, roomNumber, timeSlot);
         return this.serialize(newBookingId);
-    }
-
-    @SuppressWarnings(value = "unchecked")
-    private void copyData(HashMap<String, Object> body) throws IOException {
-        HashMap<String, HashMap<Integer, List<TimeSlot>>> roomRecords = (HashMap<String, HashMap<Integer, List<TimeSlot>>>) body.get(DataHolder.COPY_DATA.BODY_ROOM_RECORDS);
-        this.campusOps.copyData(roomRecords);
     }
 
     private byte[] getData() throws IOException {

@@ -112,12 +112,14 @@ public class DataHolder {
         static final String BODY_DATE = "d";
     }
 
-    static final class COPY_DATA {
+    // when the replica is requesting data to replica manager
+    static final class IMPORT_DATA {
         static final int operation = 7;
-        static final String BODY_ROOM_RECORDS = "rr";
+        static final String BODY_CODE = "c";
     }
 
-    static final class GET_DATA {
+    // when the replica manager requests the data
+    static final class EXPORT_DATA {
         static final int operation = 8;
     }
 }

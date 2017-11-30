@@ -3,6 +3,9 @@ import implementation.DataHolder;
 import implementation.UdpThread;
 import schema.Campus;
 
+import javax.swing.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
@@ -62,6 +65,10 @@ public class CampusServer {
             DatagramSocket udpSocket = new DatagramSocket(dataHolder.campus.getUdpPort());
             byte[] incoming = new byte[10000];
             logs.info("The UDP server for " + dataHolder.campus.name + " is up and running on port " + dataHolder.campus.getUdpPort());
+
+            // fetch the data after a second (give it a second to load)
+            campusOps.importData();
+
             while (true) {
                 DatagramPacket packet = new DatagramPacket(incoming, incoming.length);
                 try {
