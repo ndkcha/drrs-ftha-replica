@@ -16,7 +16,7 @@ public class DataHolder {
     List<String> admins;
     HashMap<String, HashMap<Integer, List<TimeSlot>>> roomRecords;
     HashMap<Integer, UdpPacket> packetHashMap = new HashMap<>();
-    int lastServedPacket;
+    int lastServedPacket, bookingSequence = 1001;
 
     public DataHolder() {
         this.campuses = new ArrayList<>();

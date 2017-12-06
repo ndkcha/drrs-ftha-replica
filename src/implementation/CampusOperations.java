@@ -399,9 +399,7 @@ public class CampusOperations implements ActionListener {
                     return "Time slot has already been booked by other student.";
 
                 // generate booking id.
-                Random random = new Random();
-                int num = random.nextInt(10000);
-                bookingId = "BKG" + this.dataHolder.campus.getCode().toUpperCase() + String.format("%04d", num);
+                bookingId = "BKG" + this.dataHolder.campus.name.toUpperCase() + String.valueOf(this.dataHolder.bookingSequence++);
 
                 // book it.
                 slot.bookTimeSlot(studentId, bookingId);
@@ -506,9 +504,7 @@ public class CampusOperations implements ActionListener {
                 return "Time slot has already been booked by other student.";
 
             // generate booking id.
-            Random random = new Random();
-            int num = random.nextInt(10000);
-            bookingId = "BKG" + this.dataHolder.campus.getCode().toUpperCase() + String.format("%04d", num);
+            bookingId = "BKG" + this.dataHolder.campus.getCode().toUpperCase() + String.valueOf(this.dataHolder.bookingSequence++);
 
             // book it.
             slot.bookTimeSlot(studentId, bookingId);
@@ -527,7 +523,18 @@ public class CampusOperations implements ActionListener {
     boolean cancelBooking(String studentId, String bookingId) {
         boolean success = false;
         HashMap<Integer, List<String>> student;
-        String code = bookingId.substring(3, 6);
+        String code = null;
+
+        for (Campus item : this.dataHolder.campuses) {
+            if (bookingId.contains(item.name.toUpperCase())) {
+                code = item.getCode();
+                break;
+            }
+        }
+
+        // campus not found
+        if (code == null)
+            return false;
 
         // no student. no cancelling.
         if (!this.dataHolder.students.containsKey(studentId))
