@@ -4,9 +4,6 @@ import schema.Campus;
 import schema.TimeSlot;
 import schema.UdpPacket;
 
-import javax.swing.Timer;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -16,10 +13,9 @@ import java.util.*;
 import java.util.logging.Logger;
 
 // use action listener only for importing data
-public class CampusOperations implements ActionListener {
+public class CampusOperations {
     private static final Object studentLock = new Object();
     private static final Object roomLock = new Object();
-    private static final Object packetLock = new Object();
 
     private Logger logs;
     private DataHolder dataHolder;
@@ -27,26 +23,6 @@ public class CampusOperations implements ActionListener {
     public CampusOperations(Logger logs, DataHolder holder) {
         this.logs = logs;
         this.dataHolder = holder;
-    }
-
-    // add packets from sequencer to queue
-    void addPacketToMap(UdpPacket packet) {
-        synchronized (packetLock) {
-            this.dataHolder.packetHashMap.put(packet.sequence, packet);
-        }
-    }
-
-    // get the next packet from the queue (sorted)
-    UdpPacket getNextPacket() {
-        return this.dataHolder.packetHashMap.getOrDefault(this.dataHolder.lastServedPacket + 1, null);
-    }
-
-    // the packet is served. no need to keep it in the queue.
-    void servePacket(int sequence) {
-        synchronized (packetLock) {
-            this.dataHolder.packetHashMap.remove(sequence);
-            this.dataHolder.lastServedPacket = sequence;
-        }
     }
 
     boolean validateUser(String id, int choice) {
@@ -60,13 +36,6 @@ public class CampusOperations implements ActionListener {
 
     HashMap<String, HashMap<Integer, List<TimeSlot>>> getData() {
         return this.dataHolder.roomRecords;
-    }
-
-    // import data from other replicas in the network
-    public void importData() {
-        Timer timer = new Timer(1000, this);
-        timer.setRepeats(false);
-        timer.start();
     }
 
     boolean createRoom(String date, int roomNo, List<TimeSlot> timeSlots) {
@@ -283,16 +252,18 @@ public class CampusOperations implements ActionListener {
 
     String getAvailableTimeSlots(String date) {
         int total;
-        String availableTimeSlots = "";
+        String availableTimeSlots = "{";
 
         for (Campus item : this.dataHolder.campuses) {
             if (item.getCode().equalsIgnoreCase(this.dataHolder.campus.getCode())) {
-                availableTimeSlots = availableTimeSlots.concat(this.dataHolder.campus.getCode() + "," + String.valueOf(this.totalAvailableTimeSlots(date)) + ";");
+                availableTimeSlots = availableTimeSlots.concat(this.dataHolder.campus.name + " : " + String.valueOf(this.totalAvailableTimeSlots(date)));
                 continue;
             }
             total = this.fetchTotalTimeSlots(date, item.getUdpPort());
-            availableTimeSlots = availableTimeSlots.concat(item.getCode() + "," + String.valueOf(total) + ";");
+            availableTimeSlots = availableTimeSlots.concat(", " + item.name + " : " + String.valueOf(total));
         }
+
+        availableTimeSlots += "}";
 
         this.logs.info("The available time slots have been returned to the user.");
         return availableTimeSlots;
@@ -749,44 +720,6 @@ public class CampusOperations implements ActionListener {
             }
         }
         return success;
-    }
-
-    // use it only for importing data
-    @Override
-    @SuppressWarnings(value = "unchecked")
-    public void actionPerformed(ActionEvent e) {
-        this.logs.info("Requesting data from the other replicas");
-        try {
-            // set up for incoming packets
-            byte[] incoming = new byte[10000];
-            DatagramPacket inData = new DatagramPacket(incoming, incoming.length);
-
-            // start the socket
-            DatagramSocket socket = new DatagramSocket();
-
-            // form the request body and the packet
-            HashMap<String, Object> body = new HashMap<>();
-            body.put(DataHolder.IMPORT_DATA.BODY_CODE, this.dataHolder.campus.getCode());
-            UdpPacket packet = new UdpPacket(DataHolder.IMPORT_DATA.operation, body);
-            byte[] outgoing = this.dataHolder.serialize(packet);
-
-            // send the request to replica manager
-            DatagramPacket outData = new DatagramPacket(outgoing, outgoing.length, InetAddress.getByName("localhost"), 8034);
-            socket.send(outData);
-
-            // wait for the data
-            socket.receive(inData);
-
-            // replace your data set
-            this.dataHolder.roomRecords = (HashMap<String, HashMap<Integer, List<TimeSlot>>>) this.dataHolder.deserialize(inData.getData());
-            this.logs.info("Imported data from the other replicas successfully");
-        } catch (SocketException exception) {
-            this.logs.warning("Error initializing the socket.\nMessage: " + exception.getMessage());
-        } catch (IOException exception) {
-            this.logs.warning("Error encoding the packet.\nMessage: " + exception.getMessage());
-        } catch (ClassNotFoundException exception) {
-            this.logs.warning("Error parsing the response.\nMessage: " + exception.getMessage());
-        }
     }
 
     static abstract class TOTAL_TIMESLOT {

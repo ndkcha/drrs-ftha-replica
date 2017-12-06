@@ -35,14 +35,35 @@ public class UdpThread implements Runnable {
             byte[] outgoing;
             DatagramPacket res;
 
-            if (udpPacket.operation < 10) {
-                this.campusOps.addPacketToMap(udpPacket);
-                this.runTheBuffer();
-                return;
-            }
-
             // perform actions
             switch (udpPacket.operation) {
+                case DataHolder.CREATE_ROOM.operation:
+                    outgoing = this.createRoom(udpPacket.body);
+                    break;
+                case DataHolder.DELETE_ROOM.operation:
+                    outgoing = this.deleteRoom(udpPacket.body);
+                    break;
+                case DataHolder.RESET_BOOKING.operation:
+                    outgoing = this.serialize(this.campusOps.resetBookings());
+                    break;
+                case DataHolder.VALIDATE_USER.operation:
+                    outgoing = this.validateUser(udpPacket.body);
+                    break;
+                case DataHolder.BOOK_ROOM.operation:
+                    outgoing = this.bookRoom(udpPacket.body);
+                    break;
+                case DataHolder.GET_TIME_SLOTS.operation:
+                    outgoing = this.getAvailableTimeSlots(udpPacket.body);
+                    break;
+                case DataHolder.CANCEL_BOOKING.operation:
+                    outgoing = this.cancelBooking(udpPacket.body);
+                    break;
+                case DataHolder.CHANGE_BOOKING.operation:
+                    outgoing = this.changeBooking(udpPacket.body);
+                    break;
+                case DataHolder.EXPORT_DATA.operation:
+                    outgoing = this.getData();
+                    break;
                 case CampusOperations.TOTAL_TIMESLOT.OP_CODE:
                     outgoing = this.totalAvailableTimeSlots(udpPacket.body);
                     break;
@@ -62,7 +83,7 @@ public class UdpThread implements Runnable {
             }
 
             // make response and send
-            res = new DatagramPacket(outgoing, outgoing.length, this.packet.getAddress(), this.packet.getPort());
+            res = (udpPacket.operation < 10) ? new DatagramPacket(outgoing, outgoing.length, InetAddress.getByName(""), udpPacket.fePort) : new DatagramPacket(outgoing, outgoing.length, this.packet.getAddress(), this.packet.getPort());
             this.server.send(res);
         } catch (IOException ioe) {
             logs.warning("Error reading the packet.\nMessage: " + ioe.getMessage());
@@ -70,55 +91,6 @@ public class UdpThread implements Runnable {
             logs.warning("Error parsing the packet.\nMessage: " + e.getMessage());
         }
 
-    }
-
-    private void runTheBuffer() {
-        UdpPacket packet = this.campusOps.getNextPacket();
-        if (packet == null)
-            return;
-        byte[] outgoing;
-        try {
-            switch (packet.operation) {
-                case DataHolder.CREATE_ROOM.operation:
-                    outgoing = this.createRoom(packet.body);
-                    break;
-                case DataHolder.DELETE_ROOM.operation:
-                    outgoing = this.deleteRoom(packet.body);
-                    break;
-                case DataHolder.RESET_BOOKING.operation:
-                    outgoing = this.serialize(this.campusOps.resetBookings());
-                    break;
-                case DataHolder.VALIDATE_USER.operation:
-                    outgoing = this.validateUser(packet.body);
-                    break;
-                case DataHolder.BOOK_ROOM.operation:
-                    outgoing = this.bookRoom(packet.body);
-                    break;
-                case DataHolder.GET_TIME_SLOTS.operation:
-                    outgoing = this.getAvailableTimeSlots(packet.body);
-                    break;
-                case DataHolder.CANCEL_BOOKING.operation:
-                    outgoing = this.cancelBooking(packet.body);
-                    break;
-                case DataHolder.CHANGE_BOOKING.operation:
-                    outgoing = this.changeBooking(packet.body);
-                    break;
-                case DataHolder.EXPORT_DATA.operation:
-                    outgoing = this.getData();
-                    break;
-                default:
-                    outgoing = serialize("Error");
-                    logs.warning("Operation not found!");
-                    break;
-            }
-
-            DatagramPacket res = new DatagramPacket(outgoing, outgoing.length, InetAddress.getByName("192.168.1.3"), packet.fePort);
-            this.server.send(res);
-            this.campusOps.servePacket(packet.sequence);
-        } catch (IOException ioe) {
-            logs.warning("Error writing the packet.\nMessage: " + ioe.getMessage());
-        }
-        this.runTheBuffer();
     }
 
     private byte[] totalAvailableTimeSlots(HashMap<String, Object> body) throws IOException {
