@@ -1,31 +1,29 @@
 package implementation;
 
 import schema.Campus;
-import schema.Student;
 import schema.TimeSlot;
 import schema.UdpPacket;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Hashtable;
-import java.util.List;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.*;
 
 public class DataHolder {
     public Campus campus = null;
     public List<Campus> campuses;
-    Hashtable<String, Student> students;
+    HashMap<String, HashMap<Integer, List<String>>> students;
     List<String> admins;
     HashMap<String, HashMap<Integer, List<TimeSlot>>> roomRecords;
     HashMap<Integer, UdpPacket> packetHashMap = new HashMap<>();
     int lastServedPacket;
 
     public DataHolder() {
-        campuses = new ArrayList<>();
-        students = new Hashtable<>();
-        admins = new ArrayList<>();
-        roomRecords = new HashMap<>();
-        lastServedPacket = -1;
+        this.campuses = new ArrayList<>();
+        this.students = new HashMap<>();
+        this.admins = new ArrayList<>();
+        this.roomRecords = new HashMap<>();
+        this.lastServedPacket = -1;
     }
 
     int getUdpPort(String code) {
@@ -55,6 +53,22 @@ public class DataHolder {
                 return o.readObject();
             }
         }
+    }
+
+    int getWeekOfYear(String date) {
+        int week = -1;
+
+        try {
+            SimpleDateFormat dateFormat = new SimpleDateFormat("dd-MM-yyyy");
+            Date dateObj = dateFormat.parse(date);
+            Calendar calendar = Calendar.getInstance();
+            calendar.setTime(dateObj);
+            week = calendar.get(Calendar.WEEK_OF_YEAR);
+        } catch (ParseException exception) {
+            System.out.println("Error parsing the date.\nMessage: " + exception.getMessage());
+        }
+
+        return week;
     }
 
     static final class CREATE_ROOM {

@@ -1,7 +1,6 @@
 package implementation;
 
 import schema.Campus;
-import schema.Student;
 import schema.TimeSlot;
 import schema.UdpPacket;
 
@@ -131,9 +130,12 @@ public class CampusOperations implements ActionListener {
                                     // is it own student ? update the count : ask the server to update their count
                                     if (this.dataHolder.students.containsKey(item.getBookedBy())) {
                                         synchronized (studentLock) {
-                                            Student student = this.dataHolder.students.get(item.getBookedBy());
-                                            student.bookingIds.remove(item.getBookingId());
-                                            this.dataHolder.students.put(student.getStudentId(), student);
+                                            HashMap<Integer, List<String>> student = this.dataHolder.students.get(item.getBookedBy());
+                                            int week = this.dataHolder.getWeekOfYear(date);
+                                            List<String> bookingIds = student.get(week);
+                                            bookingIds.remove(item.getBookingId());
+                                            student.put(week, bookingIds);
+                                            this.dataHolder.students.put(item.getBookedBy(), student);
                                         }
                                     } else {
                                         int port = this.dataHolder.getUdpPort(code);
@@ -185,9 +187,12 @@ public class CampusOperations implements ActionListener {
                             // is it own student ? update the count : ask the server to update their count
                             if (this.dataHolder.students.containsKey(slot.getBookedBy())) {
                                 synchronized (studentLock) {
-                                    Student student = this.dataHolder.students.get(slot.getBookedBy());
-                                    student.bookingIds.remove(slot.getBookingId());
-                                    this.dataHolder.students.put(student.getStudentId(), student);
+                                    HashMap<Integer, List<String>> student = this.dataHolder.students.get(slot.getBookedBy());
+                                    int week = this.dataHolder.getWeekOfYear(date);
+                                    List<String> bookingIds = student.get(week);
+                                    bookingIds.remove(slot.getBookingId());
+                                    student.put(week, bookingIds);
+                                    this.dataHolder.students.put(slot.getBookedBy(), student);
                                 }
                             } else {
                                 int port = this.dataHolder.getUdpPort(code);
@@ -252,9 +257,19 @@ public class CampusOperations implements ActionListener {
     boolean deleteBooking(String studentId, String bookingId) {
         synchronized (studentLock) {
             if (this.dataHolder.students.containsKey(studentId)) {
+                HashMap<Integer, List<String>> student = this.dataHolder.students.get(studentId);
+                for (Map.Entry<Integer, List<String>> studentEntry : student.entrySet()) {
+                    int week = studentEntry.getKey();
+                    List<String> bookingIds = studentEntry.getValue();
 
-                Student student = this.dataHolder.students.get(studentId);
-                student.bookingIds.remove(bookingId);
+                    int index = bookingIds.indexOf(bookingId);
+
+                    if (index > -1) {
+                        bookingIds.remove(index);
+                        student.put(week, bookingIds);
+                        break;
+                    }
+                }
 
                 this.dataHolder.students.put(studentId, student);
                 this.logs.info("The booking with id " + bookingId + " has been removed from student " + studentId);
@@ -340,7 +355,7 @@ public class CampusOperations implements ActionListener {
 
     String bookRoom(String studentId, String code, String date, int roomNumber, TimeSlot timeSlot) {
         String bookingId;
-        Student student;
+        HashMap<Integer, List<String>> student;
 
         // no student. no booking.
         if (!this.dataHolder.students.containsKey(studentId))
@@ -348,8 +363,11 @@ public class CampusOperations implements ActionListener {
 
         student = this.dataHolder.students.get(studentId);
 
+        int week = this.dataHolder.getWeekOfYear(date);
+        List<String> bookingIds = student.containsKey(week) ? student.get(week) : new ArrayList<>();
+
         // super active student. no booking.
-        if (student.bookingIds.size() > 2)
+        if (bookingIds.size() > 2)
             return "Maximum booking limit has been exceeded.";
 
         if (code.equalsIgnoreCase(this.dataHolder.campus.getCode())) {
@@ -395,7 +413,8 @@ public class CampusOperations implements ActionListener {
             }
 
             synchronized (studentLock) {
-                student.bookingIds.add(bookingId);
+                bookingIds.add(bookingId);
+                student.put(week, bookingIds);
                 this.dataHolder.students.put(studentId, student);
             }
 
@@ -408,7 +427,8 @@ public class CampusOperations implements ActionListener {
             // update the count
             if ((bookingId != null) && (bookingId.startsWith("BKG"))) {
                 synchronized (studentLock) {
-                    student.bookingIds.add(bookingId);
+                    bookingIds.add(bookingId);
+                    student.put(week, bookingIds);
                     this.dataHolder.students.put(studentId, student);
                 }
                 logs.info("New booking has been created under " + studentId + " with id, " + bookingId);
@@ -506,7 +526,7 @@ public class CampusOperations implements ActionListener {
 
     boolean cancelBooking(String studentId, String bookingId) {
         boolean success = false;
-        Student student;
+        HashMap<Integer, List<String>> student;
         String code = bookingId.substring(3, 6);
 
         // no student. no cancelling.
@@ -564,8 +584,18 @@ public class CampusOperations implements ActionListener {
         // update the student count
         if (success) {
             synchronized (studentLock) {
-                int bookingIndex = student.bookingIds.indexOf(bookingId);
-                student.bookingIds.remove(bookingIndex);
+                for (Map.Entry<Integer, List<String>> studentEntry : student.entrySet()) {
+                    int week = studentEntry.getKey();
+                    List<String> bookingIds = studentEntry.getValue();
+
+                    int index = bookingIds.indexOf(bookingId);
+
+                    if (index > -1) {
+                        bookingIds.remove(index);
+                        student.put(week, bookingIds);
+                        break;
+                    }
+                }
                 this.dataHolder.students.put(studentId, student);
                 logs.info("Booking with id, " + bookingId + " has been cancelled by " + studentId);
             }
@@ -575,27 +605,39 @@ public class CampusOperations implements ActionListener {
     }
 
     String changeBooking(String bookingId, String code, String date, int roomNumber, TimeSlot timeSlot) {
-        String studentId, newBookingId;
-        Student student = null;
+        String studentId = null, newBookingId;
+        HashMap<Integer, List<String>> student = null;
+        int week = -1;
 
         // find the corresponding student
-        for (Map.Entry<String, Student> studentEntry : this.dataHolder.students.entrySet()) {
-            if (studentEntry.getValue().bookingIds.indexOf(bookingId) > -1) {
-                student = studentEntry.getValue();
-                break;
+        for (Map.Entry<String, HashMap<Integer, List<String>>> studentEntry : this.dataHolder.students.entrySet()) {
+            // extract the student id for the future use
+            studentId = studentEntry.getKey();
+            HashMap<Integer, List<String>> s = studentEntry.getValue();
+
+            for (Map.Entry<Integer, List<String>> weekEntry : s.entrySet()) {
+                // extract the week number for the future use
+                week = weekEntry.getKey();
+
+                if (weekEntry.getValue().indexOf(bookingId) > -1) {
+                    student = s;
+                    break;
+                }
             }
+
+            if (student != null)
+                break;
         }
 
         // no student. it's not my booking.
-        if (student == null)
+        if ((student == null) || (studentId == null) || (week == -1))
             return "No booking found with id " + bookingId + " at the campus.";
-
-        // extract the student id for the future use
-        studentId = student.getStudentId();
 
         // decrement the student count to ensure the new booking
         synchronized (studentLock) {
-            student.bookingIds.remove(bookingId);
+            List<String> bookingIds = student.get(week);
+            bookingIds.remove(bookingId);
+            student.put(week, bookingIds);
             this.dataHolder.students.put(studentId, student);
         }
 
@@ -604,7 +646,9 @@ public class CampusOperations implements ActionListener {
 
         // update the count with old booking id (later on it can be changed based on the success of booking the new room
         synchronized (studentLock) {
-            student.bookingIds.add(bookingId);
+            List<String> bookingIds = student.get(week);
+            bookingIds.add(newBookingId);
+            student.put(week, bookingIds);
             this.dataHolder.students.put(studentId, student);
         }
 
